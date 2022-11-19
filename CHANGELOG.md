@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features/Changes
+- [1722](https://github.com/lapce/lapce/pull/1722): Add 'Save without Formatting'; Add option to disable formatting on autosave
 
 ### Bug Fixes
 
