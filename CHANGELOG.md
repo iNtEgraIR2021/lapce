@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features/Changes
+- [#1723](https://github.com/lapce/lapce/pull/1723): In the palette, display the keybind for a command adjacent to it
 
 ### Bug Fixes
 

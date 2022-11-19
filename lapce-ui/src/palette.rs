@@ -7,6 +7,8 @@ use druid::{
     LayoutCtx, LifeCycle, LifeCycleCtx, Modifiers, PaintCtx, Point, RenderContext,
     Size, Target, UpdateCtx, Widget, WidgetExt, WidgetId, WidgetPod,
 };
+use itertools::Itertools;
+use lapce_core::mode::{Mode, Modes};
 use lapce_data::{
     command::{LapceUICommand, LAPCE_COMMAND, LAPCE_UI_COMMAND},
     config::{LapceConfig, LapceTheme},
@@ -272,8 +274,16 @@ impl Widget<LapceTabData> for PaletteContainer {
     ) {
         self.input.event(ctx, event, data, env);
 
+        let mode = data.mode();
         let palette = Arc::make_mut(&mut data.palette);
         palette.list_data.update_data(data.config.clone());
+        // Update the stored data on `PaletteListData`, this is so that they can be used
+        // during painting of the list
+        palette.list_data.data.workspace = Some(data.workspace.clone());
+        palette.list_data.data.keymaps =
+            Some(data.keypress.commands_with_keymap.clone());
+        palette.list_data.data.mode = Some(mode);
+
         self.content.event(ctx, event, &mut palette.list_data, env);
 
         self.preview.event(ctx, event, data, env);
@@ -624,8 +634,35 @@ impl ListPaint<PaletteListData> for PaletteItem {
                     .kind
                     .desc()
                     .map(|m| m.to_string())
-                    .unwrap_or_else(|| "".to_string());
-                PaletteItemPaintInfo::new_text(text, self.indices.to_vec())
+                    .unwrap_or_else(String::new);
+
+                let hint = if let Some(keymaps) = data.data.keymaps.as_ref() {
+                    // The internal name of the command
+                    let command_str = command.kind.str();
+                    let mode = Modes::from(data.data.mode.unwrap_or(Mode::Normal));
+                    // Get the keymaps that match this command (if there are any) and join
+                    // at most two of the keypresses in them for the hint text.
+                    keymaps
+                        .iter()
+                        .filter(|keymap| keymap.command == command_str)
+                        .filter(|keymap| {
+                            keymap.modes.is_empty() || keymap.modes.contains(mode)
+                        })
+                        .flat_map(|keymap| &keymap.key)
+                        .take(2)
+                        .join(" ")
+                } else {
+                    String::new()
+                };
+
+                PaletteItemPaintInfo {
+                    svg: None,
+                    svg_color: None,
+                    text,
+                    text_indices: self.indices.to_vec(),
+                    hint,
+                    hint_indices: Vec::new(),
+                }
             }
             PaletteItemContent::ColorTheme(theme) => PaletteItemPaintInfo::new_text(
                 theme.to_string(),
